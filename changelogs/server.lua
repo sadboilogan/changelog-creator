@@ -1,6 +1,7 @@
 local Config = {
 	Webhook = GetConvar("changelog_webhook", "false") == "false" and false or GetConvar("changelog_webhook", "false"), -- Native complains if you pass false as non-string, hacky fix
-	FileName = GetConvar("changelog_filename", "changelog.json")
+	FileName = GetConvar("changelog_filename", "changelog.json"),
+	DumpFolderName = GetConvar("changelog_dumpfoldername", "dump")
 }
 
 local function IsFilePresent(filename)
@@ -8,9 +9,13 @@ local function IsFilePresent(filename)
 	return f and true or false
 end
 
+local function GetDate()
+	return os.date('%H-%M_%d-%m-%Y', os.time())
+end
+
 Citizen.CreateThread(function()
 	if not Config.Webhook or not IsFilePresent(Config.FileName) then
-		print("^1Could not find Webhook and/or Config. Ensure they are both present in your cfg!^7")
+		print("^1Could not find Webhook and/or Config. Ensure they are both present in your cfg!^7") -- Also ensure the folder for dumping old changelogs exists
 		return
 	else
 		print("^2Webhook and config found! Checking changelog info...^7")
@@ -92,6 +97,16 @@ Citizen.CreateThread(function()
 
 
 	PerformHttpRequest(Config.Webhook, function(errorCode, resultData, resultHeaders) end, "POST", json.encode({embeds = DiscordEmbed}), {["Content-Type"] = "application/json"})
+
+	--Create a .txt file containing the now to be previous changelog
+	OldChangelog = io.open("resources/"..GetCurrentResourceName().."/"..Config.FileName, "r")
+	OldChangelogStr = OldChangelog:read("*a")
+	text = OldChangelogStr
+	OldChangelog:close()
+
+	ChangelogDump = io.open("resources/"..GetCurrentResourceName().."/"..Config.DumpFolderName.."/Changelog"..Changelog.Version.."_"..GetDate()..".txt", "w")
+	ChangelogDump:write(text)
+	ChangelogDump:close()
 
 	-- Now we've done the changelog, its time to change the ver so it doesnt repeatably send
 
